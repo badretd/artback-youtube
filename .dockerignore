@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+web/dist
+.env
+.git
+.gitignore
+*.log
+README.md
+deploy.sh

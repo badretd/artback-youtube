@@ -1,0 +1,81 @@
+# ===== Секреты и локальная конфигурация =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+known_hosts
+
+# Резервные копии ключей E2EE, скачанные из профиля
+artback-keys-*.json
+
+# ===== Node.js =====
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/
+.yarnrc.yml
+
+# ===== Сборка и кэш =====
+dist/
+web/dist/
+server/public/
+build/
+coverage/
+.vite/
+.turbo/
+.parcel-cache/
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# ===== Логи и временные файлы =====
+*.log
+logs/
+pids/
+*.pid
+tmp/
+temp/
+.tmp/
+*.swp
+*~
+
+# ===== Базы данных и дампы =====
+backups/
+backup-*.sql
+*.sql.gz
+*.dump
+
+# ===== Docker local overrides =====
+docker-compose.override.yml
+docker-compose.*.local.yml
+*.local.yml
+
+# ===== Тесты =====
+test-results/
+playwright-report/
+.blob-report/
+
+# ===== ОС и редакторы =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
