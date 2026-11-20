@@ -132,7 +132,7 @@ export default function Shell({ me, refresh, logout }) {
         </nav>
 
         <div className="topbar-actions">
-          <span className="online-pill" title="Участники онлайн">
+          <span className="online-pill">
             <span className="online-dot" />
             {online.length} онлайн
           </span>
@@ -140,7 +140,6 @@ export default function Shell({ me, refresh, logout }) {
             type="button"
             className="user-chip"
             onClick={() => setTab('profile')}
-            title="Профиль"
           >
             <Avatar user={me.user} size={32} />
             <span className="user-chip-text">

@@ -46,7 +46,6 @@ export default function Members({ me, syncTick = 0, online = [] }) {
     <div className="members-page">
       <div className="page-head">
         <div>
-          <span className="eyebrow">Каталог клуба</span>
           <h1>Авторы ARTBACK</h1>
           <p>
             {members.length} из {me.slots?.total ?? 100} мест занято. Здесь только каналы,
@@ -112,7 +111,7 @@ export default function Members({ me, syncTick = 0, online = [] }) {
                 <div className="member-top">
                   <span className="member-avatar">
                     <Avatar user={member} size={64} />
-                    {isOnline && <span className="online-dot" title="Онлайн" />}
+                    {isOnline && <span className="online-dot" />}
                   </span>
                   <div className="member-badges">
                     {member.isAdmin && (

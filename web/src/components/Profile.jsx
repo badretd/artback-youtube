@@ -76,7 +76,6 @@ export default function Profile({ me, refresh, logout, onOpenChat }) {
     <div className="profile-page">
       <div className="page-head">
         <div>
-          <span className="eyebrow">Аккаунт</span>
           <h1>Профиль</h1>
           <p>Ваш канал, статус участника и ключи шифрования.</p>
         </div>

@@ -72,17 +72,12 @@ export default function Onboarding({ me, refresh, logout, authError = '' }) {
 
   return (
     <div className="onboarding">
-      <div className="onboarding-bg">
-        <div className="orb orb-red" />
-        <div className="landing-grid" />
-      </div>
-
       <header className="app-topbar onboarding-topbar">
         <Brand size="md" />
         <div className="topbar-actions">
           <span className="slot-pill">
             <Icon name="users" size={15} />
-            {taken} / {total}
+            Занято {taken} из {total}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={logout} type="button">
             <Icon name="logout" size={16} />
@@ -93,7 +88,6 @@ export default function Onboarding({ me, refresh, logout, authError = '' }) {
 
       <main className="onboarding-main">
         <div className="onboarding-intro">
-          <span className="eyebrow">Остался один шаг</span>
           <h1>Подтвердите свой канал</h1>
           <p>
             Привет, {me.user.displayName}. Мы проверим, что канал действительно ваш,

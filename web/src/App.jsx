@@ -69,7 +69,6 @@ export default function App() {
   if (loading) {
     return (
       <div className="boot-screen">
-        <div className="boot-glow" />
         <Brand size="lg" />
         <div className="boot-loader">
           <span />

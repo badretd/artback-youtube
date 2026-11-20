@@ -154,7 +154,6 @@ export default function Admin({ me, refresh, onSynced }) {
       <div className="admin-page">
         <div className="page-head">
           <div>
-            <span className="eyebrow">Управление</span>
             <h1>Админка</h1>
           </div>
         </div>
@@ -174,7 +173,6 @@ export default function Admin({ me, refresh, onSynced }) {
     <div className="admin-page">
       <div className="page-head">
         <div>
-          <span className="eyebrow">Управление клубом</span>
           <h1>Админка</h1>
           <p>Участники, блокировки, ключи, синхронизация и журнал действий.</p>
         </div>

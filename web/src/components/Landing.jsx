@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import Brand from './Brand.jsx';
 import { Icon } from './Icons.jsx';
@@ -19,11 +19,47 @@ export default function Landing({ config, authError, onAuth, onClearError }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [slots, setSlots] = useState(() => ({
+    total: config?.maxMembers ?? 100,
+    taken: config?.taken ?? 0,
+  }));
+  const firstFieldRef = useRef(null);
 
-  const total = config?.maxMembers ?? 100;
-  const taken = config?.taken ?? 0;
+  useEffect(() => {
+    if (!config) return;
+    setSlots({
+      total: config.maxMembers ?? 100,
+      taken: config.taken ?? 0,
+    });
+  }, [config]);
+
+  // Keep the remaining-spots counter fresh while the visitor is on the page.
+  useEffect(() => {
+    let alive = true;
+    const syncSlots = async () => {
+      try {
+        const next = await api.get('/api/config');
+        if (!alive) return;
+        setSlots({
+          total: next?.maxMembers ?? 100,
+          taken: next?.taken ?? 0,
+        });
+      } catch {
+        // Keep the last known counter; the form itself is unaffected.
+      }
+    };
+    const timer = setInterval(syncSlots, 45_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  const total = Math.max(1, slots.total || 100);
+  const taken = Math.max(0, Math.min(slots.taken || 0, total));
   const free = Math.max(0, total - taken);
   const full = free === 0;
   const progress = Math.min(100, Math.round((taken / total) * 100));
@@ -35,8 +71,23 @@ export default function Landing({ config, authError, onAuth, onClearError }) {
   }, [full, mode]);
 
   useEffect(() => {
+    // Avoid popping the mobile keyboard open on page load.
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+    firstFieldRef.current?.focus({ preventScroll: true });
+  }, [mode, full]);
+
+  const clearMessages = () => {
+    if (error) setError('');
+    if (authError && onClearError) onClearError();
+  };
+
+  const switchMode = (next) => {
+    if (next === mode) return;
+    setMode(next);
     setError('');
-  }, [mode]);
+    setShowPassword(false);
+    if (onClearError) onClearError();
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -62,298 +113,156 @@ export default function Landing({ config, authError, onAuth, onClearError }) {
     }
   };
 
-  const features = useMemo(
-    () => [
-      {
-        icon: 'shield',
-        title: 'Сквозное шифрование',
-        text: 'Сервер хранит только шифротекст. Ключ общего чата есть только у участников, а медиа шифруются в браузере до загрузки в S3.',
-      },
-      {
-        icon: 'users',
-        title: 'Только 100 авторов',
-        text: 'Место занимает тот, кто привязал свой YouTube-канал и подтвердил владение им. Первый участник становится администратором.',
-      },
-      {
-        icon: 'refresh',
-        title: 'Подписчики каждый день',
-        text: 'Раз в сутки сервер обновляет статистику всех каналов пакетными запросами к YouTube API — всего 2 запроса на 100 участников.',
-      },
-      {
-        icon: 'image',
-        title: 'Медиа в вашем S3',
-        text: 'Изображения, видео и файлы отправляются в общий чат зашифрованными. Лимиты по размеру настраиваются администратором.',
-      },
-    ],
-    [],
-  );
-
   return (
-    <div className="landing">
-      <div className="landing-bg">
-        <div className="orb orb-red" />
-        <div className="orb orb-orange" />
-        <div className="landing-grid" />
-      </div>
-
-      <header className="landing-header">
-        <Brand size="md" />
-        <div className="landing-header-right">
-          <a href="#how" className="ghost-link">Как это работает</a>
-          <a href="#features" className="ghost-link">Возможности</a>
-          <a href="#join" className="btn btn-primary btn-sm">Войти в клуб</a>
+    <div className="auth-page">
+      <main className="auth-shell">
+        <div className="auth-brand">
+          <Brand size="md" />
         </div>
-      </header>
 
-      <main className="landing-main">
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow">
-              <span className="eyebrow-dot" />
-              Закрытое сообщество · {total} мест
-            </div>
-            <h1>
-              Комната для ста
-              <br />
-              <span className="gradient-text">YouTube-авторов</span>
-            </h1>
-            <p className="hero-sub">
-              Привяжите свой канал, подтвердите владение им и попадите в общий
-              чат с настоящим сквозным шифрованием. Никаких случайных людей —
-              только авторы с подтверждённым каналом.
+        <div className="slots-card" aria-live="polite">
+          <span className="slots-label">
+            {full ? 'Свободных мест нет' : 'Осталось мест'}
+          </span>
+          <div className="slots-value">
+            <strong>{free}</strong>
+            <span>из {total}</span>
+          </div>
+          <div className="progress" aria-hidden="true">
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <span className="slots-hint">
+            {full ? 'Регистрация закрыта' : 'Регистрация открыта'}
+          </span>
+        </div>
+
+        <section className="auth-card" aria-labelledby="auth-title">
+          <div className="auth-head">
+            <h1 id="auth-title">{mode === 'login' ? 'Вход' : 'Регистрация'}</h1>
+            <p className="muted">
+              {mode === 'login'
+                ? 'Войдите, чтобы открыть общий чат.'
+                : 'Создайте аккаунт, затем подтвердите YouTube-канал.'}
             </p>
-
-            <div className="hero-stats">
-              <div className="slot-card">
-                <div className="slot-top">
-                  <span>Занято мест</span>
-                  <strong>
-                    {taken} <span>/ {total}</span>
-                  </strong>
-                </div>
-                <div className="progress">
-                  <span style={{ width: `${progress}%` }} />
-                </div>
-                <div className="slot-bottom">
-                  <span>{free > 0 ? `Свободно ${free}` : 'Регистрация закрыта'}</span>
-                  <span>{progress}%</span>
-                </div>
-              </div>
-              <div className="hero-mini">
-                <div className="mini-icon"><Icon name="lock" size={20} /></div>
-                <div>
-                  <strong>E2EE</strong>
-                  <span>ключи только у вас</span>
-                </div>
-              </div>
-              <div className="hero-mini">
-                <div className="mini-icon"><Icon name="crown" size={20} /></div>
-                <div>
-                  <strong>Первый = админ</strong>
-                  <span>управление клубом</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="hero-points">
-              <span><Icon name="check" size={16} /> Владение каналом подтверждается кодом или Google</span>
-              <span><Icon name="check" size={16} /> Подписчики обновляются автоматически раз в сутки</span>
-            </div>
           </div>
 
-          <div className="auth-card" id="join">
-            <div className="auth-card-glow" />
-            <div className="auth-head">
-              <h2>{full ? 'Мест больше нет' : mode === 'login' ? 'С возвращением' : 'Занять место'}</h2>
-              <p className="muted">
-                {full
-                  ? 'Все 100 мест заняты. Вход доступен действующим участникам.'
-                  : mode === 'login'
-                    ? 'Войдите, чтобы продолжить.'
-                    : 'Аккаунт станет участником после подтверждения канала.'}
-              </p>
+          {shownError && (
+            <div className="notice notice-error" role="alert">
+              <Icon name="info" size={16} />
+              <span>{shownError}</span>
             </div>
+          )}
 
-            {shownError && (
-              <div className="notice notice-error">
-                <Icon name="info" size={16} />
-                <span>{shownError}</span>
-              </div>
-            )}
+          {!full && (
+            <div className="segmented" role="group" aria-label="Вход или регистрация">
+              <button
+                type="button"
+                className={mode === 'login' ? 'active' : ''}
+                aria-pressed={mode === 'login'}
+                onClick={() => switchMode('login')}
+              >
+                Вход
+              </button>
+              <button
+                type="button"
+                className={mode === 'register' ? 'active' : ''}
+                aria-pressed={mode === 'register'}
+                onClick={() => switchMode('register')}
+              >
+                Регистрация
+              </button>
+            </div>
+          )}
 
-            {!full && (
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={mode === 'login' ? 'active' : ''}
-                  onClick={() => setMode('login')}
-                >
-                  Вход
-                </button>
-                <button
-                  type="button"
-                  className={mode === 'register' ? 'active' : ''}
-                  onClick={() => setMode('register')}
-                >
-                  Регистрация
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={submit} className="auth-form">
-              {mode === 'register' && (
-                <label className="field">
-                  <span>Как вас называть</span>
-                  <input
-                    value={displayName}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Ваше имя или ник"
-                    autoComplete="nickname"
-                    minLength={2}
-                    maxLength={40}
-                    required
-                  />
-                </label>
-              )}
-              <label className="field">
-                <span>Email</span>
+          <form onSubmit={submit} className="auth-form" aria-busy={busy}>
+            {mode === 'register' && !full && (
+              <div className="field">
+                <label htmlFor="auth-display-name">Отображаемое имя</label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
+                  id="auth-display-name"
+                  ref={firstFieldRef}
+                  value={displayName}
+                  onChange={(event) => {
+                    setDisplayName(event.target.value);
+                    clearMessages();
+                  }}
+                  placeholder="Как вас называть"
+                  autoComplete="nickname"
+                  minLength={2}
+                  maxLength={40}
+                  disabled={busy}
                   required
                 />
-              </label>
-              <label className="field">
-                <span>Пароль</span>
+              </div>
+            )}
+            <div className="field">
+              <label htmlFor="auth-email">Email</label>
+              <input
+                id="auth-email"
+                ref={mode === 'login' || full ? firstFieldRef : undefined}
+                type="email"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  clearMessages();
+                }}
+                placeholder="you@example.com"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                disabled={busy}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="auth-password">Пароль</label>
+              <div className="password-wrap">
                 <input
-                  type="password"
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearMessages();
+                  }}
                   placeholder={mode === 'register' ? 'Минимум 8 символов' : 'Ваш пароль'}
                   autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                   minLength={mode === 'register' ? 8 : undefined}
+                  disabled={busy}
                   required
                 />
-              </label>
-
-              <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
-                {busy
-                  ? 'Подключаемся…'
-                  : mode === 'login'
-                    ? 'Войти'
-                    : 'Создать аккаунт'}
-              </button>
-            </form>
-
-            {config?.googleEnabled && (
-              <>
-                <div className="divider"><span>или</span></div>
-                <a className="btn btn-google btn-block" href="/api/auth/google">
-                  <GoogleMark />
-                  Продолжить с Google
-                </a>
-                <p className="fineprint">
-                  При входе через Google канал привязывается автоматически, если он есть в аккаунте.
-                </p>
-              </>
-            )}
-
-            {full && (
-              <div className="notice notice-warn">
-                <Icon name="info" size={16} />
-                <span>
-                  Освободившееся место появится здесь автоматически. Следите за обновлением.
-                </span>
+                <button
+                  className="password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                >
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={17} />
+                </button>
               </div>
-            )}
+            </div>
 
-            <div className="auth-note">
-              <Icon name="lock" size={14} />
-              <span>Пароль хранится в виде scrypt-хэша. Сайт не читает ваши сообщения.</span>
-            </div>
-          </div>
-        </section>
+            <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+              {busy
+                ? 'Проверяем…'
+                : mode === 'login'
+                  ? 'Войти'
+                  : 'Создать аккаунт'}
+            </button>
+          </form>
 
-        <section className="section" id="how">
-          <div className="section-head">
-            <span className="eyebrow">Как попасть</span>
-            <h2>Три шага до общего чата</h2>
-            <p>Регистрация считается завершённой только после подтверждения YouTube-канала.</p>
-          </div>
-          <div className="steps">
-            <div className="step-card">
-              <span className="step-number">01</span>
-              <h3>Создайте аккаунт</h3>
-              <p>Email и пароль или вход через Google. Это ещё не участие — место пока не занято.</p>
-            </div>
-            <div className="step-card">
-              <span className="step-number">02</span>
-              <h3>Подтвердите канал</h3>
-              <p>
-                Вставьте ссылку на канал, а затем код <code>ARTBACK-XXXXXX</code> в описание канала.
-                Мы проверим его через YouTube API.
-              </p>
-            </div>
-            <div className="step-card">
-              <span className="step-number">03</span>
-              <h3>Получите ключ</h3>
-              <p>
-                После подтверждения вы становитесь участником. Другой участник передаст вам ключ
-                шифрования группы прямо в браузер.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="section" id="features">
-          <div className="section-head">
-            <span className="eyebrow">Внутри</span>
-            <h2>Не просто чат</h2>
-            <p>Инфраструктура, рассчитанная на закрытое сообщество авторов.</p>
-          </div>
-          <div className="feature-grid">
-            {features.map((feature) => (
-              <article className="feature-card" key={feature.title}>
-                <div className="feature-icon"><Icon name={feature.icon} size={22} /></div>
-                <h3>{feature.title}</h3>
-                <p>{feature.text}</p>
-              </article>
-            ))}
-          </div>
-          <div className="admin-strip">
-            <div>
-              <h3><Icon name="shield" size={20} /> Административные функции</h3>
-              <p>
-                Блокировка и разблокировка участников, назначение администраторов,
-                удаление сообщений, ручная синхронизация подписчиков и журнал действий.
-              </p>
-            </div>
-            <div className="admin-strip-badge">
-              <Icon name="crown" size={18} />
-              Первый подтверждённый участник
-            </div>
-          </div>
-        </section>
-
-        <section className="cta-section">
-          <div>
-            <h2>Осталось {free > 0 ? `${free} ${free === 1 ? 'место' : 'мест'}` : 'ноль мест'}</h2>
-            <p>Подтверждённый канал — ваш пропуск. Всё остальное написано кодом.</p>
-          </div>
-          <a href="#join" className="btn btn-primary">{full ? 'Войти' : 'Занять место'}</a>
+          {config?.googleEnabled && (
+            <>
+              <div className="divider"><span>или</span></div>
+              <a className="btn btn-google btn-block" href="/api/auth/google">
+                <GoogleMark />
+                Продолжить с Google
+              </a>
+            </>
+          )}
         </section>
       </main>
-
-      <footer className="landing-footer">
-        <Brand size="sm" />
-        <div className="footer-meta">
-          <span>E2EE · YouTube API · S3</span>
-          <span>© {new Date().getFullYear()} ARTBACK</span>
-        </div>
-      </footer>
     </div>
   );
 }
